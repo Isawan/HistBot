@@ -8,22 +8,26 @@ import contextlib
 import argparse
 import os, sys
 
+
 parser = argparse.ArgumentParser(
         description='A bot to scrape the full history from a discord channel')
-parser.add_argument('--token','-t',
-        nargs=1,
+parser.add_argument('-token',
         type=str,
         required=True
         )
-parser.add_argument('--output','-o',
-        nargs=1,
+parser.add_argument('-output',
         type=str,
         required=True
         )
-parser.add_argument('--userid','-u',
-        nargs=1,
+parser.add_argument('-userid',
         type=int,
         required=True
+        )
+parser.add_argument('-start-date',
+        type=lambda d: datetime.datetime.strptime(d,'%Y-%m-%d'),
+        default=datetime.datetime.now(),
+        metavar='YYYY-MM-DD',
+        dest='start_date'
         )
 args = parser.parse_args(sys.argv[1:])
 
@@ -41,12 +45,13 @@ async def on_ready():
 @bot.command(pass_context=True)
 async def history(ctx):
     # Permission check
-    if ( int(ctx.message.author.id) != args.userid[0]):
+    if ( int(ctx.message.author.id) != args.userid):
         return
 
-    start_time = datetime.datetime.now()
+    start_time = args.start_date
+    print(start_time)
     while True:
-        with contextlib.closing(sqlite3.connect(args.output[0])) as dbcon:
+        with contextlib.closing(sqlite3.connect(args.output)) as dbcon:
             cursor = dbcon.cursor() 
             n = 0
             async for message in bot.logs_from(ctx.message.channel,
@@ -99,7 +104,7 @@ def init_db(output_db):
             username TEXT NOT NULL,
             discriminator INTEGER NOT NULL )''')
 
-if not os.path.isfile(args.output[0]):
-    init_db(args.output[0])
+if not os.path.isfile(args.output):
+    init_db(args.output)
 
-bot.run(args.token[0])
+bot.run(args.token)
