@@ -9,24 +9,23 @@ import argparse
 import os, sys
 
 parser = argparse.ArgumentParser(
-        prog='histbot',
         description='A bot to scrape the full history from a discord channel')
-parser.add_arguments('--token','-t',
+parser.add_argument('--token','-t',
         nargs=1,
         type=str,
         required=True
         )
-parser.add_arguments('--output','-o',
+parser.add_argument('--output','-o',
         nargs=1,
         type=str,
         required=True
         )
-parser.add_arguments('--userid','-u',
-        nargs=2,
+parser.add_argument('--userid','-u',
+        nargs=1,
         type=int,
         required=True
         )
-args = parser.parse_args(sys.argv)
+args = parser.parse_args(sys.argv[1:])
 
 
 bot = commands.Bot(command_prefix='!')
@@ -42,22 +41,23 @@ async def on_ready():
 @bot.command(pass_context=True)
 async def history(ctx):
     # Permission check
-    if ( ctx.message.author.id != args['--userid']): return
+    if ( int(ctx.message.author.id) != args.userid[0]):
+        return
+
     start_time = datetime.datetime.now()
-    with contextlib.closing(sqlite3.connect(args['--output')) as dbcon:
-        with dbcon.cursor() as cursor:
-            while True:
-                print('collecting')
-                n = 0
-                async for message in bot.logs_from(ctx.message.channel,before=start_time):
-                    add_message(cursor,message)
-                    last_message = message
-                    n += 1
-                    print(message.timestamp.isoformat(), message.content)
-                if n == 0: break
-                start_time = last_message.timestamp
-                print('sleep')
-                await asyncio.sleep(5)
+    while True:
+        with contextlib.closing(sqlite3.connect(args.output[0])) as dbcon:
+            cursor = dbcon.cursor() 
+            n = 0
+            async for message in bot.logs_from(ctx.message.channel,
+                    before=start_time):
+                add_message(cursor,message)
+                last_message = message
+                n += 1
+                print(message.timestamp.isoformat(), message.author.name, message.content)
+        if n == 0: break
+        start_time = last_message.timestamp
+        await asyncio.sleep(5)
     print('done')
 
 
@@ -84,8 +84,8 @@ def add_message(cursor, message):
         (int(message.id), int(message.author.id), int(message.channel.id),
             message.timestamp.isoformat(), str(message.content)))
 
-def init_db():
-    db_con = sqlite3.connect('database.sqlite')
+def init_db(output_db):
+    db_con = sqlite3.connect(output_db)
     c = db_con.cursor()
     c.execute('''CREATE TABLE messages (
             message_id INTEGER PRIMARY KEY,
@@ -99,8 +99,7 @@ def init_db():
             username TEXT NOT NULL,
             discriminator INTEGER NOT NULL )''')
 
-if not os.path.isfile(args['--output']):
-    init_db()
+if not os.path.isfile(args.output[0]):
+    init_db(args.output[0])
 
-bot.run(args['--token'])
-dbcon.close()
+bot.run(args.token[0])
