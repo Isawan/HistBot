@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import discord
 from discord.ext import commands
 import asyncio
@@ -5,7 +6,27 @@ import sqlite3
 import datetime
 import contextlib
 import argparse
-import os
+import os, sys
+
+parser = argparse.ArgumentParser(
+        prog='histbot',
+        description='A bot to scrape the full history from a discord channel')
+parser.add_arguments('--token','-t',
+        nargs=1,
+        type=str,
+        required=True
+        )
+parser.add_arguments('--output','-o',
+        nargs=1,
+        type=str,
+        required=True
+        )
+parser.add_arguments('--userid','-u',
+        nargs=2,
+        type=int,
+        required=True
+        )
+args = parser.parse_args(sys.argv)
 
 
 bot = commands.Bot(command_prefix='!')
@@ -20,9 +41,10 @@ async def on_ready():
 
 @bot.command(pass_context=True)
 async def history(ctx):
-    if ctx.message.author.name != 'Iciciliser': return
+    # Permission check
+    if ( ctx.message.author.id != args['--userid']): return
     start_time = datetime.datetime.now()
-    with contextlib.closing(sqlite3.connect('database.sqlite')) as dbcon:
+    with contextlib.closing(sqlite3.connect(args['--output')) as dbcon:
         with dbcon.cursor() as cursor:
             while True:
                 print('collecting')
@@ -77,18 +99,8 @@ def init_db():
             username TEXT NOT NULL,
             discriminator INTEGER NOT NULL )''')
 
-    c.execute('''CREATE TABLE guilds (
-            guild_id INTEGER PRIMARY KEY,
-            name TEXT NOT NULL)''')
-
-    c.execute('''CREATE TABLE channel (
-            channel_id INTEGER PRIMARY KEY,
-            type INTEGER)''')
-    db_con.commit()
-    db_con.close()
-
-if not os.path.isfile('database.sqlite'):
+if not os.path.isfile(args['--output']):
     init_db()
 
-bot.run('INSERT TOKEN')
+bot.run(args['--token'])
 dbcon.close()
