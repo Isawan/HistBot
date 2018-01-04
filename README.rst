@@ -13,7 +13,9 @@ Start off by downloading the necessary dependencies.::
 
 We can start the bot by running.::
     python3 histbot.py -t <bot token> -u <your userid> \\
+
                        -o <output filename>\\
+
                        -s <start date in YYYY-MM-DD>
 
 Note that the ``-s`` flag is optional, without this the default is set to current time.
